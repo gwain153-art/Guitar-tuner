@@ -225,32 +225,63 @@ function ensureAudioContext() {
   return audioCtx;
 }
 
+let starting = false;
+let silentSince = 0;
+
+// Errors go in the big readout, not just the footer, so they can't be missed on a phone
+function showError(msg) {
+  els.meter.className = "meter error";
+  els.note.textContent = "!";
+  els.cents.textContent = msg;
+  els.hint.innerHTML = "&nbsp;";
+  els.status.textContent = msg;
+}
+
 async function startMic() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    els.status.textContent = "Microphone not available. The page must be served over HTTPS (or localhost).";
+  if (starting) return;
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    showError(window.isSecureContext
+      ? "This browser can't use the microphone. Open the page in Safari or Chrome."
+      : "Microphone needs a secure page. Open the https:// link.");
     return;
   }
+  starting = true;
+  els.start.textContent = "Starting…";
+  const slow = setTimeout(() => {
+    els.cents.textContent = "Waiting for microphone permission… No prompt? Open this page in Safari or Chrome directly.";
+  }, 4000);
   try {
     ensureAudioContext();
     micStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
+    // iOS can suspend the context when the mic switches the audio session on
+    if (audioCtx.state !== "running") await audioCtx.resume().catch(() => {});
     const source = audioCtx.createMediaStreamSource(micStream);
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 4096;
     source.connect(analyser);
     buffer = new Float32Array(analyser.fftSize);
     running = true;
+    silentSince = performance.now();
     els.start.textContent = "Stop";
     els.start.classList.add("on");
     els.status.textContent = "";
-    els.cents.textContent = "Play a string";
+    resetReadout();
     requestWakeLock();
     requestAnimationFrame(loop);
   } catch (err) {
-    els.status.textContent = err.name === "NotAllowedError"
-      ? "Microphone permission denied. Allow it in your browser settings and try again."
-      : "Couldn't open the microphone: " + err.message;
+    micStream?.getTracks().forEach((t) => t.stop());
+    micStream = null;
+    els.start.textContent = "Start tuning";
+    showError(err.name === "NotAllowedError"
+      ? "Microphone blocked. Allow it for this site in your browser settings, then tap Start again."
+      : err.name === "NotFoundError"
+        ? "No microphone found."
+        : "Couldn't open the microphone: " + (err.message || err.name));
+  } finally {
+    clearTimeout(slow);
+    starting = false;
   }
 }
 
@@ -386,7 +417,16 @@ function loop(now) {
   analyser.getFloatTimeDomainData(buffer);
 
   let freq = null;
-  if (rms(buffer) > RMS_GATE) {
+  const level = rms(buffer);
+  if (level > 0) {
+    silentSince = now;
+    if (els.cents.textContent.startsWith("No sound")) els.cents.textContent = "Play a string";
+  }
+  else if (now - silentSince > 3000) {
+    if (audioCtx.state !== "running") audioCtx.resume().catch(() => {});
+    els.cents.textContent = "No sound coming from the mic. Tap anywhere, or Stop and Start again.";
+  }
+  if (level > RMS_GATE) {
     const { minF, maxF } = detectionRange();
     freq = detectPitch(buffer, audioCtx.sampleRate, minF, maxF);
   }
@@ -565,6 +605,11 @@ els.sound.addEventListener("change", () => {
 });
 
 els.start.addEventListener("click", () => (running ? stopMic() : startMic()));
+
+// Any tap resumes a stalled audio context (iOS needs a user gesture for that)
+document.addEventListener("pointerdown", () => {
+  if (audioCtx && audioCtx.state !== "running") audioCtx.resume().catch(() => {});
+});
 
 // ---------- Init ----------
 buildInstrumentSelect();

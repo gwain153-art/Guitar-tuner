@@ -74,6 +74,12 @@
     <p class="foot" id="status"></p>
   </main>
 
+  <script>
+    window.addEventListener("error", (e) => {
+      var el = document.getElementById("status");
+      if (el) el.textContent = "Error: " + e.message;
+    });
+  </script>
   <script src="tunings.js"></script>
   <script src="tuner.js"></script>
 </body>
