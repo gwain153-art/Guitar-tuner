@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101114">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Guitar Tuner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎸</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>Tuner</h1>
+      <div class="selectors">
+        <label>
+          <span>Instrument</span>
+          <select id="instrument"></select>
+        </label>
+        <label>
+          <span>Tuning</span>
+          <select id="tuning"></select>
+        </label>
+      </div>
+    </header>
+
+    <section class="custom" id="custom" hidden>
+      <div class="custom-head">
+        <span>Custom tuning</span>
+        <button type="button" class="link" id="custom-reset">Reset to standard</button>
+      </div>
+      <div class="custom-strings" id="custom-strings"></div>
+    </section>
+
+    <section class="meter" aria-live="polite">
+      <svg class="gauge" viewBox="0 0 300 170" aria-hidden="true">
+        <g id="ticks"></g>
+        <path class="zone" d=""></path>
+        <line id="needle" x1="150" y1="160" x2="150" y2="30"></line>
+        <circle cx="150" cy="160" r="7" class="hub"></circle>
+      </svg>
+      <div class="readout">
+        <div class="note" id="note">--</div>
+        <div class="cents" id="cents">Tap start and play a string</div>
+        <div class="freq" id="freq">&nbsp;</div>
+      </div>
+      <div class="hint" id="hint">&nbsp;</div>
+    </section>
+
+    <section class="strings" id="strings" aria-label="Strings"></section>
+
+    <section class="controls">
+      <button type="button" class="primary" id="start">Start tuning</button>
+      <div class="segmented" role="radiogroup" aria-label="Mode">
+        <button type="button" role="radio" data-mode="auto" aria-checked="true">Auto</button>
+        <button type="button" role="radio" data-mode="manual" aria-checked="false">Lock string</button>
+        <button type="button" role="radio" data-mode="chromatic" aria-checked="false">Chromatic</button>
+      </div>
+      <div class="row">
+        <label class="inline">
+          <span>A4 =</span>
+          <button type="button" class="step" data-a4="-1" aria-label="Lower reference pitch">−</button>
+          <output id="a4">440</output><span>Hz</span>
+          <button type="button" class="step" data-a4="1" aria-label="Raise reference pitch">+</button>
+        </label>
+        <label class="inline toggle">
+          <input type="checkbox" id="sound">
+          <span>Play note on tap</span>
+        </label>
+      </div>
+    </section>
+
+    <p class="foot" id="status"></p>
+  </main>
+
+  <script src="tunings.js"></script>
+  <script src="tuner.js"></script>
+</body>
+</html>
